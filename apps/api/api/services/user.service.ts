@@ -430,6 +430,11 @@ class UserService {
     return user?.email;
   }
 
+  async isUserAdmin(userId: string): Promise<boolean> {
+    const user = await this.userRepository.findById(userId, 'users');
+    return user?.roles?.includes('admin') || false;
+  }
+
   /**
    * Get current quota limits
    */
