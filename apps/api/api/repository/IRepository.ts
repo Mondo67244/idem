@@ -11,5 +11,10 @@ export interface IRepository<T extends { id?: string; createdAt?: Date; updatedA
     item: Partial<Omit<T, 'id' | 'createdAt' | 'updatedAt'>>,
     collectionPath: string
   ): Promise<T | null>;
+  updateBlind(
+    id: string,
+    item: Partial<Omit<T, 'id' | 'createdAt' | 'updatedAt'>>,
+    collectionPath: string
+  ): Promise<boolean>;
   delete(id: string, collectionPath: string): Promise<boolean>;
 }
