@@ -265,6 +265,50 @@ export class FirestoreRepository<T extends { id?: string; createdAt?: Date; upda
     }
   }
 
+  async updateBlind(
+    id: string,
+    item: Partial<Omit<T, 'id' | 'createdAt' | 'updatedAt'>>,
+    collectionPath: string
+  ): Promise<boolean> {
+    logger.info(`FirestoreRepository.updateBlind called for ${collectionPath}, id: ${id}`);
+
+    try {
+      const docRef = this.getDocument(id, collectionPath);
+
+      // Prepare data for update, including updatedAt timestamp
+      const dataToUpdate = this.toFirestore({
+        ...item,
+        updatedAt: new Date(),
+      } as Partial<T>);
+
+      // Update the document directly without reading first
+      await docRef.update(dataToUpdate);
+
+      // Invalidate cache for this document
+      const cacheKey = cacheService.generateDBKey(collectionPath.replace(/\//g, ':'), 'system', id);
+      await cacheService.delete(cacheKey, { prefix: 'db' });
+
+      logger.info(`Document blind-updated in ${collectionPath} with id: ${id}`);
+      return true;
+    } catch (error: any) {
+      // If document doesn't exist, update throws an error with code 5 (NOT_FOUND) usually, or similar.
+      // We can check error.code or message.
+      if (error.code === 5 || error.message.includes('NOT_FOUND') || error.code === 'not-found') {
+        logger.warn(`Document not found for blind update in ${collectionPath} with id: ${id}`);
+        return false;
+      }
+
+      logger.error(
+        `Error blind updating document in ${collectionPath} with id ${id}: ${error.message}`,
+        {
+          stack: error.stack,
+          item,
+        }
+      );
+      throw error;
+    }
+  }
+
   async delete(id: string, collectionPath: string): Promise<boolean> {
     logger.info(`FirestoreRepository.delete called for ${collectionPath}, id: ${id}`);
 
