@@ -1,6 +1,6 @@
-import express, { Express, Request, Response } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import morgan from 'morgan';
-import { stream as loggerStream } from './config/logger';
+import logger, { stream as loggerStream } from './config/logger';
 import admin from 'firebase-admin';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -158,9 +158,16 @@ app.use((req: Request, res: Response) => {
   res.status(404).json({ error: 'Endpoint not found' });
 });
 
-app.use((err: Error, req: Request, res: Response /*, next: NextFunction */) => {
-  console.error('Global error handler:', err);
-  res.status(500).send('Something broke!');
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  logger.error('Global error handler:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Internal Server Error',
+    ...(process.env.NODE_ENV === 'development' && {
+      error: err.message,
+      stack: err.stack,
+    }),
+  });
 });
 
 const server = app.listen(port, async () => {
