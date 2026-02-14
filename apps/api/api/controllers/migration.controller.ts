@@ -18,17 +18,7 @@ export async function runMigration(req: CustomRequest, res: Response): Promise<v
       return;
     }
 
-    // TODO: Vérifier que l'utilisateur est un administrateur
-    // Pour l'instant, on peut ajouter une vérification basique
-    const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [];
     const userEmail = req.user?.email;
-
-    if (!userEmail || !adminEmails.includes(userEmail)) {
-      res
-        .status(403)
-        .json({ success: false, error: { code: 'FORBIDDEN', message: 'Admin access required' } });
-      return;
-    }
 
     logger.info(`Starting migration requested by admin: ${userEmail}`);
 
