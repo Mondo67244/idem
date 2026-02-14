@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../services/auth.service';
+import { requireAdmin } from '../middleware/admin.middleware';
 import * as migrationController from '../controllers/migration.controller';
 
 const router = Router();
@@ -18,7 +19,7 @@ const router = Router();
  *       403:
  *         description: Accès refusé
  */
-router.post('/run', authenticate, migrationController.runMigration);
+router.post('/run', authenticate, requireAdmin, migrationController.runMigration);
 
 /**
  * @openapi
@@ -34,6 +35,6 @@ router.post('/run', authenticate, migrationController.runMigration);
  *       404:
  *         description: Migration non démarrée
  */
-router.get('/status', authenticate, migrationController.getMigrationStatus);
+router.get('/status', authenticate, requireAdmin, migrationController.getMigrationStatus);
 
 export default router;
