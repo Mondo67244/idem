@@ -217,8 +217,8 @@ class UserService {
       quotaData.dailyUsage += incrementValue;
       quotaData.weeklyUsage += incrementValue;
 
-      // Update user document with incremented quota
-      await this.userRepository.update(
+      // Update user document with incremented quota using blind update to save a read operation
+      await this.userRepository.updateBlind(
         userId,
         {
           quota: {
@@ -343,7 +343,7 @@ class UserService {
     };
 
     // Update the user document with quota data
-    await this.userRepository.update(
+    await this.userRepository.updateBlind(
       userId,
       {
         quota: {
@@ -391,7 +391,7 @@ class UserService {
 
     if (needsUpdate) {
       // Update the user document with reset quota data
-      await this.userRepository.update(
+      await this.userRepository.updateBlind(
         userId,
         {
           quota: {

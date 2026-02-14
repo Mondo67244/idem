@@ -265,6 +265,43 @@ export class FirestoreRepository<T extends { id?: string; createdAt?: Date; upda
     }
   }
 
+  async updateBlind(
+    id: string,
+    item: Partial<Omit<T, 'id' | 'createdAt' | 'updatedAt'>>,
+    collectionPath: string
+  ): Promise<void> {
+    logger.info(`FirestoreRepository.updateBlind called for ${collectionPath}, id: ${id}`);
+
+    try {
+      // Get document reference
+      const docRef = this.getDocument(id, collectionPath);
+
+      // Prepare data for update, including updatedAt timestamp
+      const dataToUpdate = this.toFirestore({
+        ...item,
+        updatedAt: new Date(),
+      } as Partial<T>);
+
+      // Update the document directly (skipping read)
+      await docRef.update(dataToUpdate);
+
+      // Invalidate cache for this document
+      const cacheKey = cacheService.generateDBKey(collectionPath.replace(/\//g, ':'), 'system', id);
+      await cacheService.delete(cacheKey, { prefix: 'db' });
+
+      logger.info(`Document updated (blind) in ${collectionPath} with id: ${id}`);
+    } catch (error: any) {
+      logger.error(
+        `Error updating (blind) document in ${collectionPath} with id ${id}: ${error.message}`,
+        {
+          stack: error.stack,
+          item,
+        }
+      );
+      throw error;
+    }
+  }
+
   async delete(id: string, collectionPath: string): Promise<boolean> {
     logger.info(`FirestoreRepository.delete called for ${collectionPath}, id: ${id}`);
 
