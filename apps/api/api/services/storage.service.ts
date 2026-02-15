@@ -133,52 +133,68 @@ export class StorageService {
         variationsCount: Object.keys(variations).length,
       });
 
+      const uploadPromises: Promise<void>[] = [];
+
       // Upload primary logo
-      results.primaryLogo = await this.uploadFile(
-        primaryLogo,
-        'logo-primary.svg',
-        folderPath,
-        'image/svg+xml'
+      // Use Promise.all to upload variations in parallel for better performance
+      uploadPromises.push(
+        this.uploadFile(primaryLogo, 'logo-primary.svg', folderPath, 'image/svg+xml').then(
+          (res) => {
+            results.primaryLogo = res;
+          }
+        )
       );
 
       // Upload icon SVG if provided
       if (iconSvg) {
-        results.iconSvg = await this.uploadFile(
-          iconSvg,
-          'logo-icon.svg',
-          folderPath,
-          'image/svg+xml'
+        uploadPromises.push(
+          this.uploadFile(iconSvg, 'logo-icon.svg', folderPath, 'image/svg+xml').then((res) => {
+            results.iconSvg = res;
+          })
         );
       }
 
       // Upload withText variations
       if (variations.withText) {
         results.withText = {};
+        const vt = variations.withText;
 
-        if (variations.withText.lightBackground) {
-          results.withText.lightBackground = await this.uploadFile(
-            variations.withText.lightBackground,
-            'logo-with-text-light.svg',
-            folderPath,
-            'image/svg+xml'
+        if (vt.lightBackground) {
+          uploadPromises.push(
+            this.uploadFile(
+              vt.lightBackground,
+              'logo-with-text-light.svg',
+              folderPath,
+              'image/svg+xml'
+            ).then((res) => {
+              results.withText!.lightBackground = res;
+            })
           );
         }
 
-        if (variations.withText.darkBackground) {
-          results.withText.darkBackground = await this.uploadFile(
-            variations.withText.darkBackground,
-            'logo-with-text-dark.svg',
-            folderPath,
-            'image/svg+xml'
+        if (vt.darkBackground) {
+          uploadPromises.push(
+            this.uploadFile(
+              vt.darkBackground,
+              'logo-with-text-dark.svg',
+              folderPath,
+              'image/svg+xml'
+            ).then((res) => {
+              results.withText!.darkBackground = res;
+            })
           );
         }
 
-        if (variations.withText.monochrome) {
-          results.withText.monochrome = await this.uploadFile(
-            variations.withText.monochrome,
-            'logo-with-text-mono.svg',
-            folderPath,
-            'image/svg+xml'
+        if (vt.monochrome) {
+          uploadPromises.push(
+            this.uploadFile(
+              vt.monochrome,
+              'logo-with-text-mono.svg',
+              folderPath,
+              'image/svg+xml'
+            ).then((res) => {
+              results.withText!.monochrome = res;
+            })
           );
         }
       }
@@ -186,34 +202,49 @@ export class StorageService {
       // Upload iconOnly variations
       if (variations.iconOnly) {
         results.iconOnly = {};
+        const vio = variations.iconOnly;
 
-        if (variations.iconOnly.lightBackground) {
-          results.iconOnly.lightBackground = await this.uploadFile(
-            variations.iconOnly.lightBackground,
-            'logo-icon-light.svg',
-            folderPath,
-            'image/svg+xml'
+        if (vio.lightBackground) {
+          uploadPromises.push(
+            this.uploadFile(
+              vio.lightBackground,
+              'logo-icon-light.svg',
+              folderPath,
+              'image/svg+xml'
+            ).then((res) => {
+              results.iconOnly!.lightBackground = res;
+            })
           );
         }
 
-        if (variations.iconOnly.darkBackground) {
-          results.iconOnly.darkBackground = await this.uploadFile(
-            variations.iconOnly.darkBackground,
-            'logo-icon-dark.svg',
-            folderPath,
-            'image/svg+xml'
+        if (vio.darkBackground) {
+          uploadPromises.push(
+            this.uploadFile(
+              vio.darkBackground,
+              'logo-icon-dark.svg',
+              folderPath,
+              'image/svg+xml'
+            ).then((res) => {
+              results.iconOnly!.darkBackground = res;
+            })
           );
         }
 
-        if (variations.iconOnly.monochrome) {
-          results.iconOnly.monochrome = await this.uploadFile(
-            variations.iconOnly.monochrome,
-            'logo-icon-mono.svg',
-            folderPath,
-            'image/svg+xml'
+        if (vio.monochrome) {
+          uploadPromises.push(
+            this.uploadFile(
+              vio.monochrome,
+              'logo-icon-mono.svg',
+              folderPath,
+              'image/svg+xml'
+            ).then((res) => {
+              results.iconOnly!.monochrome = res;
+            })
           );
         }
       }
+
+      await Promise.all(uploadPromises);
 
       logger.info(`Logo variations uploaded successfully`, {
         userId,
@@ -289,33 +320,36 @@ export class StorageService {
       });
 
       // Upload each team member image
-      for (const file of files) {
-        // Extract member index from fieldname (e.g., "teamMemberImage_0" -> 0)
-        const memberIndexMatch = file.fieldname.match(/teamMemberImage_(\d+)/);
-        if (!memberIndexMatch) {
-          logger.warn(`Invalid fieldname format: ${file.fieldname}`);
-          continue;
-        }
+      // Process uploads in parallel to reduce total latency
+      await Promise.all(
+        files.map(async (file) => {
+          // Extract member index from fieldname (e.g., "teamMemberImage_0" -> 0)
+          const memberIndexMatch = file.fieldname.match(/teamMemberImage_(\d+)/);
+          if (!memberIndexMatch) {
+            logger.warn(`Invalid fieldname format: ${file.fieldname}`);
+            return;
+          }
 
-        const memberIndex = parseInt(memberIndexMatch[1], 10);
-        const fileExtension = file.originalname.split('.').pop() || 'jpg';
-        const fileName = `team-member-${memberIndex}.${fileExtension}`;
+          const memberIndex = parseInt(memberIndexMatch[1], 10);
+          const fileExtension = file.originalname.split('.').pop() || 'jpg';
+          const fileName = `team-member-${memberIndex}.${fileExtension}`;
 
-        const uploadResult = await this.uploadFile(
-          file.buffer,
-          fileName,
-          folderPath,
-          file.mimetype || 'image/jpeg'
-        );
+          const uploadResult = await this.uploadFile(
+            file.buffer,
+            fileName,
+            folderPath,
+            file.mimetype || 'image/jpeg'
+          );
 
-        results[memberIndex] = uploadResult;
+          results[memberIndex] = uploadResult;
 
-        logger.info(`Team member image uploaded successfully`, {
-          memberIndex,
-          fileName,
-          downloadURL: uploadResult.downloadURL,
-        });
-      }
+          logger.info(`Team member image uploaded successfully`, {
+            memberIndex,
+            fileName,
+            downloadURL: uploadResult.downloadURL,
+          });
+        })
+      );
 
       logger.info(`All team member images uploaded successfully`, {
         userId,
@@ -448,13 +482,16 @@ export class StorageService {
       const extractedFiles: Record<string, string> = {};
 
       // Extract all files from the ZIP
-      for (const [filePath, file] of Object.entries(zipContent.files)) {
-        const zipFile = file as any;
-        if (!zipFile.dir) {
-          const content = await zipFile.async('string');
-          extractedFiles[filePath] = content;
-        }
-      }
+      // Process file extractions in parallel to speed up large zip handling
+      await Promise.all(
+        Object.entries(zipContent.files).map(async ([filePath, file]) => {
+          const zipFile = file as any;
+          if (!zipFile.dir) {
+            const content = await zipFile.async('string');
+            extractedFiles[filePath] = content;
+          }
+        })
+      );
 
       logger.info(`Successfully extracted ${Object.keys(extractedFiles).length} files from ZIP`, {
         projectId,
